@@ -23,7 +23,7 @@ Minimum hashset size is: 512 ([4]uint64; will be set automatically).
 ###install
 
 ```sh
-go get github.com/AndreasBriese/bbloom
+go get github.com/astyi/bbloom
 ```
 
 ###test
@@ -46,7 +46,7 @@ after installation add
 ```go
 import (
 	...
-	"github.com/AndreasBriese/bbloom"
+	"github.com/astyi/bbloom"
 	...
 	)
 ```

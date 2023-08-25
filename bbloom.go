@@ -31,6 +31,7 @@ package bbloom
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"log"
 	"math"
 	"sync"
@@ -72,7 +73,7 @@ func New(params ...float64) (bloomfilter Bloom) {
 	} else {
 		log.Fatal("usage: New(float64(number_of_entries), float64(number_of_hashlocations)) i.e. New(float64(1000), float64(3)) or New(float64(number_of_entries), float64(number_of_hashlocations)) i.e. New(float64(1000), float64(0.03))")
 	}
-	size, exponent := getSize(uint64(entries))
+	size, exponent := getSize(entries)
 	bloomfilter = Bloom{
 		Mtx:     &sync.Mutex{},
 		sizeExp: exponent,
@@ -93,25 +94,6 @@ func NewWithBoolset(bs *[]byte, locs uint64) (bloomfilter Bloom) {
 		*(*uint8)(unsafe.Pointer(uintptr(unsafe.Pointer(&bloomfilter.bitset[0])) + uintptr(i))) = b
 	}
 	return bloomfilter
-}
-
-// bloomJSONImExport
-// Im/Export structure used by JSONMarshal / JSONUnmarshal
-type bloomJSONImExport struct {
-	FilterSet []byte
-	SetLocs   uint64
-}
-
-// JSONUnmarshal
-// takes JSON-Object (type bloomJSONImExport) as []bytes
-// returns Bloom object
-func JSONUnmarshal(dbData []byte) Bloom {
-	bloomImEx := bloomJSONImExport{}
-	json.Unmarshal(dbData, &bloomImEx)
-	buf := bytes.NewBuffer(bloomImEx.FilterSet)
-	bs := buf.Bytes()
-	bf := NewWithBoolset(&bs, bloomImEx.SetLocs)
-	return bf
 }
 
 //
@@ -147,6 +129,7 @@ type Bloom struct {
 // set the bit(s) for entry; Adds an entry to the Bloom filter
 func (bl *Bloom) Add(entry []byte) {
 	l, h := bl.sipHash(entry)
+	fmt.Println(l, "========", h, "=========", bl.shift)
 	for i := uint64(0); i < bl.setLocs; i++ {
 		bl.set((h + i*l) & bl.size)
 		bl.ElemNum++
@@ -241,6 +224,25 @@ func (bl *Bloom) isSet(idx uint64) bool {
 	// ommit unsafe
 	// return (((*(*uint8)(unsafe.Pointer(uintptr(unsafe.Pointer(&bl.bitset[idx>>6])) + uintptr((idx%64)>>3)))) >> (idx % 8)) & 1) == 1
 	return bl.bitset[idx>>6]&(1<<(idx%64)) != 0
+}
+
+// bloomJSONImExport
+// Im/Export structure used by JSONMarshal / JSONUnmarshal
+type bloomJSONImExport struct {
+	FilterSet []byte
+	SetLocs   uint64
+}
+
+// JSONUnmarshal
+// takes JSON-Object (type bloomJSONImExport) as []bytes
+// returns Bloom object
+func JSONUnmarshal(dbData []byte) Bloom {
+	bloomImEx := bloomJSONImExport{}
+	json.Unmarshal(dbData, &bloomImEx)
+	buf := bytes.NewBuffer(bloomImEx.FilterSet)
+	bs := buf.Bytes()
+	bf := NewWithBoolset(&bs, bloomImEx.SetLocs)
+	return bf
 }
 
 // JSONMarshal
